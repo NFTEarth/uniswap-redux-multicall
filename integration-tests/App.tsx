@@ -1,18 +1,16 @@
 import React from 'react'
-import { Provider } from 'react-redux'
 import { ChainId } from './consts'
 import { getProvider, useCurrentBlockTimestamp, useLatestBlock, useMaxTokenBalance } from './hooks'
-import { store } from './store'
 import { Updater } from './Updater'
 
 export function App() {
   const provider = getProvider(ChainId.MAINNET)
   const blockNumber = useLatestBlock(provider)
   return (
-    <Provider store={store}>
+    <>
       <Updater chainId={ChainId.MAINNET} blockNumber={blockNumber} />
       <Home chainId={ChainId.MAINNET} blockNumber={blockNumber} />
-    </Provider>
+    </>
   )
 }
 

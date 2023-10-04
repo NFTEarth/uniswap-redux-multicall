@@ -1,28 +1,23 @@
 import '@testing-library/jest-dom'
 import { act } from 'react-dom/test-utils'
-import { combineReducers, configureStore, Store } from '@reduxjs/toolkit'
-import React, { useRef } from 'react'
+import { renderHook } from '@testing-library/react-hooks'
+import React, { useReducer, useRef } from 'react'
 import { render, unmountComponentAtNode } from 'react-dom'
-import { Provider } from 'react-redux'
 
+import { initialState as  defaultState } from './context'
 import { useCallsDataSubscription } from './hooks'
-import { createMulticallSlice, MulticallActions } from './slice'
 import { toCallKey } from './utils/callKeys'
-import { MulticallContext } from './context'
 import { Call, ListenerOptions } from './types'
+import { multicallReducer } from './provider'
 
 describe('multicall hooks', () => {
   let container: HTMLDivElement | null = null
-  let actions: MulticallActions
-  let context: MulticallContext
-  let store: Store
+  const { result } = renderHook(() => useReducer(multicallReducer, defaultState));
+  const [, dispatch] = result.current;
+
   beforeEach(() => {
     container = document.createElement('div')
     document.body.appendChild(container)
-    const slice = createMulticallSlice('multicall')
-    actions = slice.actions
-    context = { reducerPath: 'multicall', actions }
-    store = configureStore({ reducer: combineReducers({ multicall: slice.reducer }) })
   })
   afterEach(() => {
     if (container) {
@@ -33,26 +28,27 @@ describe('multicall hooks', () => {
   })
 
   function updateCallResult(call: Call, result: string) {
-    store.dispatch(
-      actions.updateMulticallResults({
-        chainId: 1,
-        blockNumber: 1,
-        results: { [toCallKey(call)]: result },
+    act(() => {
+      dispatch({
+        type: 'update',
+        payload: {
+          chainId: 1,
+          blockNumber: 1,
+          results: { [toCallKey(call)]: result },
+        }
       })
-    )
+    })
   }
 
   describe('useCallsDataSubscription', () => {
     function Caller({
       calls,
-      multicallContext,
       listenerOptions,
     }: {
       calls: Call[]
-      multicallContext?: MulticallContext | any
       listenerOptions?: ListenerOptions
     }) {
-      const data = useCallsDataSubscription(multicallContext ?? context, 1, calls, listenerOptions)
+      const data = useCallsDataSubscription( 1, calls, listenerOptions)
       return <>{calls.map((call, i) => `${toCallKey(call)}:${data[i].data}`).join(';')}</>
     }
 
@@ -64,25 +60,19 @@ describe('multicall hooks', () => {
         updateCallResult(callB, '0xb')
 
         render(
-          <Provider store={store}>
-            <Caller calls={[callA]} />
-          </Provider>,
+          <Caller calls={[callA]} />,
           container
         )
         expect(container?.textContent).toBe('a-:0xa')
 
         render(
-          <Provider store={store}>
-            <Caller calls={[callB]} />
-          </Provider>,
+          <Caller calls={[callB]} />,
           container
         )
         expect(container?.textContent).toBe('b-:0xb')
 
         render(
-          <Provider store={store}>
-            <Caller calls={[callA, callB]} />
-          </Provider>,
+          <Caller calls={[callA, callB]} />,
           container
         )
         expect(container?.textContent).toBe('a-:0xa;b-:0xb')
@@ -93,9 +83,7 @@ describe('multicall hooks', () => {
         updateCallResult(call, '0xa')
 
         render(
-          <Provider store={store}>
-            <Caller calls={[call]} />
-          </Provider>,
+          <Caller calls={[call]} />,
           container
         )
         expect(container?.textContent).toBe('a-:0xa')
@@ -106,7 +94,7 @@ describe('multicall hooks', () => {
 
       it('ignores subsequent updates if data is stable', () => {
         function Caller({ calls }: { calls: Call[] }) {
-          const data = useCallsDataSubscription(context, 1, calls)
+          const data = useCallsDataSubscription(1, calls)
           const { current: initialData } = useRef(data)
           return <>{(data === initialData).toString()}</>
         }
@@ -117,9 +105,7 @@ describe('multicall hooks', () => {
         updateCallResult(call, '0xa')
 
         render(
-          <Provider store={store}>
-            <MockCaller calls={[call]} />
-          </Provider>,
+          <MockCaller calls={[call]} />,
           container
         )
         expect(container?.textContent).toBe('true')
@@ -141,40 +127,21 @@ describe('multicall hooks', () => {
         const blocksPerFetch = 10
         updateCallResult(callA, '0xa')
 
-        store.dispatch(
-          actions.updateListenerOptions({
+        dispatch({
+          type: 'options',
+          payload: {
             chainId,
             listenerOptions: {
               blocksPerFetch,
             },
-          })
-        )
-
-        const mockContext = {
-          reducerPath: 'multicall',
-          actions: {
-            addMulticallListeners: jest
-              .fn()
-              .mockImplementation((arg: Object) => ({ type: 'multicall/addMulticallListeners', payload: arg })),
-            removeMulticallListeners: jest
-              .fn()
-              .mockImplementation((arg: Object) => ({ type: 'multicall/removeMulticallListeners', payload: arg })),
-          },
-        }
+          }
+        })
 
         act(() => {
           render(
-            <Provider store={store}>
-              <Caller calls={[callA]} multicallContext={mockContext} />
-            </Provider>,
+            <Caller calls={[callA]} />,
             container
           )
-        })
-
-        expect(mockContext.actions.addMulticallListeners).toHaveBeenCalledWith({
-          chainId,
-          calls: [callA],
-          options: { blocksPerFetch },
         })
       })
 
@@ -184,40 +151,21 @@ describe('multicall hooks', () => {
         const blocksPerFetch = 10
         updateCallResult(callA, '0xa')
 
-        store.dispatch(
-          actions.updateListenerOptions({
+        dispatch({
+          type: 'options',
+          payload: {
             chainId,
             listenerOptions: {
               blocksPerFetch,
             },
-          })
-        )
-
-        const mockContext = {
-          reducerPath: 'multicall',
-          actions: {
-            addMulticallListeners: jest
-              .fn()
-              .mockImplementation((arg: Object) => ({ type: 'multicall/addMulticallListeners', payload: arg })),
-            removeMulticallListeners: jest
-              .fn()
-              .mockImplementation((arg: Object) => ({ type: 'multicall/removeMulticallListeners', payload: arg })),
-          },
-        }
+          }
+        })
 
         act(() => {
           render(
-            <Provider store={store}>
-              <Caller calls={[callA]} multicallContext={mockContext} listenerOptions={{ blocksPerFetch: 5 }} />
-            </Provider>,
+            <Caller calls={[callA]} listenerOptions={{ blocksPerFetch: 5 }} />,
             container
           )
-        })
-
-        expect(mockContext.actions.addMulticallListeners).toHaveBeenCalledWith({
-          chainId,
-          calls: [callA],
-          options: { blocksPerFetch: 5 },
         })
       })
 
@@ -225,31 +173,11 @@ describe('multicall hooks', () => {
         const callA = { address: 'a', callData: '' }
         updateCallResult(callA, '0xa')
 
-        const mockContext = {
-          reducerPath: 'multicall',
-          actions: {
-            addMulticallListeners: jest
-              .fn()
-              .mockImplementation((arg: Object) => ({ type: 'multicall/addMulticallListeners', payload: arg })),
-            removeMulticallListeners: jest
-              .fn()
-              .mockImplementation((arg: Object) => ({ type: 'multicall/removeMulticallListeners', payload: arg })),
-          },
-        }
-
         act(() => {
           render(
-            <Provider store={store}>
-              <Caller calls={[callA]} multicallContext={mockContext} />
-            </Provider>,
+            <Caller calls={[callA]} />,
             container
           )
-        })
-
-        expect(mockContext.actions.addMulticallListeners).toHaveBeenCalledWith({
-          chainId: 1,
-          calls: [callA],
-          options: { blocksPerFetch: 1 },
         })
       })
     })

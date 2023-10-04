@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { UniswapInterfaceMulticall } from '../src/abi/types'
 import { ChainId, DAI_ADDRESS, MULTICALL_ADDRESS, NULL_ADDRESS, USDC_ADDRESS, USDT_ADDRESS } from './consts'
 import ERC20_ABI from './erc20.json'
-import { useMultiChainSingleContractSingleData, useMultipleContractSingleData, useSingleCallResult } from './multicall'
+import { useMultiChainSingleContractSingleData, useMultipleContractSingleData, useSingleCallResult } from '../src/hooks'
 
 config()
 if (!process.env.INFURA_PROJECT_ID) throw new Error('Tests require process.env.INFURA_PROJECT_ID')
@@ -43,7 +43,7 @@ export function useLatestBlock(provider: JsonRpcProvider) {
 
 export function useCurrentBlockTimestamp(chainId: ChainId, blockNumber: number | undefined): string | undefined {
   const contract = useContract(chainId)
-  const callState = useSingleCallResult(chainId, blockNumber, contract, 'getCurrentBlockTimestamp')
+  const callState = useSingleCallResult('getCurrentBlockTimestamp', contract, chainId, blockNumber)
   return callState.result?.[0]?.toString()
 }
 
@@ -85,7 +85,7 @@ export function useMaxTokenBalance(chainId: ChainId, blockNumber: number | undef
     }),
     []
   )
-  const results = useMultipleContractSingleData(chainId, blockNumber, contracts, ERC20Interface, 'balanceOf', accounts)
+  const results = useMultipleContractSingleData(ERC20Interface, 'balanceOf', accounts, chainId, blockNumber, contracts)
   let max
   for (const result of results) {
     if (!result.valid || !result.result?.length) continue

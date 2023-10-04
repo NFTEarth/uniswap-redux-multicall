@@ -1,7 +1,7 @@
 {
-  "name": "@uniswap/redux-multicall",
+  "name": "@nftearth/uniswap-multicall",
   "version": "1.1.6",
-  "description": "A React + Redux lib for fetching and caching chain state via the MultiCall contract",
+  "description": "A React  ̶+̶ ̶R̶e̶d̶u̶x̶ lib for fetching and caching chain state via the MultiCall contract",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "files": [
@@ -12,7 +12,7 @@
     "uniswap",
     "ethereum"
   ],
-  "module": "dist/redux-multicall.esm.js",
+  "module": "dist/uniswap-multicall.esm.js",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -32,11 +32,11 @@
     "@ethersproject/bignumber": "5",
     "@ethersproject/contracts": "5",
     "@ethersproject/providers": "5",
-    "@reduxjs/toolkit": "^1.6.2",
     "@semantic-release/changelog": "^6.0.1",
     "@semantic-release/git": "^10.0.1",
     "@testing-library/jest-dom": "^5.15.1",
     "@testing-library/react": "^12.1.2",
+    "@testing-library/react-hooks": "^8.0.1",
     "@typechain/ethers-v5": "^7.2.0",
     "@types/jest": "^25.2.1",
     "@types/react": "^17.0.28",
@@ -48,7 +48,6 @@
     "prettier": "^2.4.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "react-redux": "^7.2.5",
     "semantic-release": "^19.0.5",
     "tsdx": "^0.14.1",
     "typechain": "^5.2.0"
@@ -57,9 +56,7 @@
     "@ethersproject/abi": "5",
     "@ethersproject/bignumber": "5",
     "@ethersproject/contracts": "5",
-    "@reduxjs/toolkit": "1",
-    "react": ">=17",
-    "react-redux": ">=7"
+    "react": ">=17"
   },
   "engines": {
     "node": ">=10"

@@ -53,10 +53,6 @@ export interface MulticallState {
   }
 }
 
-export interface WithMulticallState {
-  [path: string]: MulticallState
-}
-
 export interface ListenerOptions {
   // how often this data should be fetched, by default 1
   readonly blocksPerFetch: number
@@ -67,26 +63,61 @@ export interface ListenerOptionsWithGas extends ListenerOptions {
 }
 
 export interface MulticallListenerPayload {
-  chainId: number
   calls: Call[]
   options: ListenerOptions
+  chainId?: number
 }
 
 export interface MulticallFetchingPayload {
-  chainId: number
   calls: Call[]
-  fetchingBlockNumber: number
+  chainId?: number
+  fetchingBlockNumber?: number
 }
 
 export interface MulticallResultsPayload {
-  chainId: number
-  blockNumber: number
   results: {
     [callKey: string]: string | null
   }
+  chainId?: number
+  blockNumber?: number
 }
 
 export interface MulticallListenerOptionsPayload {
-  chainId: number
   listenerOptions: ListenerOptions
+  chainId?: number
 }
+
+
+export type AddMulticallAction = {
+  type: 'add'
+  payload: MulticallListenerPayload
+}
+
+export type RemoveMulticallAction = {
+  type: 'remove'
+  payload: MulticallListenerPayload
+}
+
+export type FetchMulticallAction = {
+  type: 'fetch'
+  payload: MulticallFetchingPayload
+}
+
+export type ErrorMulticallAction = {
+  type: 'error',
+  payload: MulticallFetchingPayload
+}
+
+export type UpdateMulticallAction = {
+  type: 'update'
+  payload: MulticallResultsPayload
+}
+
+export type OptionsMulticallAction = {
+  type: 'options'
+  payload: MulticallListenerOptionsPayload
+}
+
+export type MulticallAction = AddMulticallAction | RemoveMulticallAction | FetchMulticallAction | ErrorMulticallAction | UpdateMulticallAction | OptionsMulticallAction
+
+

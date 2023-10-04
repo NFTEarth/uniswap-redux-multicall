@@ -1,7 +1,7 @@
 import React from 'react'
 import { ChainId } from './consts'
 import { useContract } from './hooks'
-import { multicall } from './multicall'
+import MulticallProvider from '../src/provider'
 
 interface Props {
   chainId: ChainId
@@ -13,7 +13,7 @@ export function Updater({ chainId, blockNumber, blocksPerFetch }: Props) {
   const contract = useContract(chainId)
   const listenerOptions = blocksPerFetch ? { blocksPerFetch } : undefined
   return (
-    <multicall.Updater
+    <MulticallProvider
       chainId={chainId}
       latestBlockNumber={blockNumber}
       contract={contract}

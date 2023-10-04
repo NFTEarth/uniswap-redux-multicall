@@ -1,8 +1,6 @@
 import React, { useMemo } from 'react'
-import { Provider } from 'react-redux'
 import { ChainId } from './consts'
 import { getProvider, useCurrentBlockTimestampMultichain, useLatestBlock } from './hooks'
-import { store } from './store'
 import { Updater } from './Updater'
 
 export function MultichainApp() {
@@ -13,11 +11,11 @@ export function MultichainApp() {
   const chains = useMemo(() => [ChainId.MAINNET, ChainId.GOERLI], [])
   const blocks = useMemo(() => [blockNumberMainnet, blockNumberGoerli], [blockNumberMainnet, blockNumberGoerli])
   return (
-    <Provider store={store}>
+    <>
       <Updater chainId={ChainId.MAINNET} blockNumber={blockNumberMainnet} />
       <Updater chainId={ChainId.GOERLI} blockNumber={blockNumberGoerli} blocksPerFetch={5} />
       <Home chainIds={chains} blockNumbers={blocks} />
-    </Provider>
+    </>
   )
 }
 

@@ -1,14 +1,16 @@
-import React, { Dispatch, useEffect, useMemo, useRef } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import type { UniswapInterfaceMulticall } from './abi/types'
-import { CHUNK_GAS_LIMIT, DEFAULT_CALL_GAS_REQUIRED } from './constants'
-import type { MulticallContext } from './context'
-import type { MulticallActions } from './slice'
-import type { Call, MulticallState, WithMulticallState, ListenerOptions } from './types'
+import React, { FC, useContext, useEffect, useMemo, useReducer, useRef } from 'react'
+import MulticallContext, { initialState } from './context'
+import {
+  Call,
+  ListenerOptions, MulticallAction,
+  MulticallState
+} from './types'
+import useDebounce from './utils/useDebounce'
 import { parseCallKey, toCallKey } from './utils/callKeys'
 import chunkCalls from './utils/chunkCalls'
+import { CHUNK_GAS_LIMIT, DEFAULT_CALL_GAS_REQUIRED } from './constants'
 import { retry, RetryableError } from './utils/retry'
-import useDebounce from './utils/useDebounce'
+import { UniswapInterfaceMulticall } from './abi/types'
 
 const FETCH_RETRY_CONFIG = {
   n: Infinity,
@@ -145,20 +147,11 @@ export function outdatedListeningKeys(
   })
 }
 
-interface FetchChunkContext {
-  actions: MulticallActions
-  dispatch: Dispatch<any>
-  chainId: number
-  latestBlockNumber: number
-  isDebug?: boolean
-}
-
 function onFetchChunkSuccess(
-  context: FetchChunkContext,
   chunk: Call[],
   result: Array<{ success: boolean; returnData: string }>
 ) {
-  const { actions, dispatch, chainId, latestBlockNumber, isDebug } = context
+  const { dispatch, chainId, latestBlockNumber, isDebug } = useContext(MulticallContext)
 
   // split the returned slice into errors and results
   const { erroredCalls, results } = chunk.reduce<{
@@ -178,13 +171,14 @@ function onFetchChunkSuccess(
 
   // dispatch any new results
   if (Object.keys(results).length > 0)
-    dispatch(
-      actions.updateMulticallResults({
+    dispatch({
+      type: 'update',
+      payload: {
         chainId,
         results,
         blockNumber: latestBlockNumber,
-      })
-    )
+      }
+    })
 
   // dispatch any errored calls
   if (erroredCalls.length > 0) {
@@ -197,35 +191,166 @@ function onFetchChunkSuccess(
     } else {
       console.debug('Calls errored in fetch', erroredCalls)
     }
-    dispatch(
-      actions.errorFetchingMulticallResults({
+    dispatch({
+      type: 'error',
+      payload: {
         calls: erroredCalls,
         chainId,
         fetchingBlockNumber: latestBlockNumber,
-      })
-    )
+      }
+    })
   }
 }
 
-function onFetchChunkFailure(context: FetchChunkContext, chunk: Call[], error: any) {
-  const { actions, dispatch, chainId, latestBlockNumber } = context
+function onFetchChunkFailure(chunk: Call[], error: any) {
+  const { dispatch, chainId, latestBlockNumber } = useContext(MulticallContext)
 
   if (error.isCancelledError) {
     console.debug('Cancelled fetch for blockNumber', latestBlockNumber, chunk, chainId)
     return
   }
   console.error('Failed to fetch multicall chunk', chunk, chainId, error)
-  dispatch(
-    actions.errorFetchingMulticallResults({
+  dispatch({
+    type: 'error',
+    payload: {
       calls: chunk,
       chainId,
       fetchingBlockNumber: latestBlockNumber,
-    })
-  )
+    }
+  })
 }
 
-export interface UpdaterProps {
-  context: MulticallContext
+export const multicallReducer = (state: MulticallState, action: MulticallAction) : MulticallState => {
+  switch (action.type) {
+    case 'add': {
+      const {
+        calls,
+        chainId,
+        options: { blocksPerFetch },
+      } = action.payload
+
+      if (!chainId) {
+        return state
+      }
+
+      const listeners: MulticallState['callListeners'] = state.callListeners
+        ? state.callListeners
+        : (state.callListeners = {})
+      listeners[chainId] = listeners[chainId] ?? {}
+      calls.forEach((call) => {
+        const callKey = toCallKey(call)
+        listeners[chainId][callKey] = listeners[chainId][callKey] ?? {}
+        listeners[chainId][callKey][blocksPerFetch] = (listeners[chainId][callKey][blocksPerFetch] ?? 0) + 1
+      })
+
+      return state
+    }
+    case 'remove': {
+      const {
+        calls,
+        chainId,
+        options: { blocksPerFetch },
+      } = action.payload
+      const listeners: MulticallState['callListeners'] = state.callListeners
+        ? state.callListeners
+        : (state.callListeners = {})
+
+      if (!chainId || !listeners[chainId]) {
+        return state
+      }
+
+      calls.forEach((call) => {
+        const callKey = toCallKey(call)
+        if (!listeners[chainId][callKey]) return
+        if (!listeners[chainId][callKey][blocksPerFetch]) return
+
+        if (listeners[chainId][callKey][blocksPerFetch] === 1) {
+          delete listeners[chainId][callKey][blocksPerFetch]
+        } else {
+          listeners[chainId][callKey][blocksPerFetch]--
+        }
+      })
+
+      return state
+    }
+    case 'fetch': {
+      const { chainId, fetchingBlockNumber, calls } = action.payload
+      if (!chainId || !fetchingBlockNumber) {
+        return state
+      }
+
+      state.callResults[chainId] = state.callResults[chainId] ?? {}
+      calls.forEach((call) => {
+        const callKey = toCallKey(call)
+        const current = state.callResults[chainId][callKey]
+        if (!current) {
+          state.callResults[chainId][callKey] = {
+            fetchingBlockNumber,
+          }
+        } else {
+          if ((current.fetchingBlockNumber ?? 0) >= fetchingBlockNumber) return
+          state.callResults[chainId][callKey].fetchingBlockNumber = fetchingBlockNumber
+        }
+      })
+
+      return state
+    }
+    case 'error': {
+      const { chainId, fetchingBlockNumber, calls } = action.payload
+      if (!chainId || !fetchingBlockNumber) {
+        return state
+      }
+
+      state.callResults[chainId] = state.callResults[chainId] ?? {}
+      calls.forEach((call) => {
+        const callKey = toCallKey(call)
+        const current = state.callResults[chainId][callKey]
+        if (!current || typeof current.fetchingBlockNumber !== 'number') return // only should be dispatched if we are already fetching
+        if (current.fetchingBlockNumber <= fetchingBlockNumber) {
+          delete current.fetchingBlockNumber
+          current.data = null
+          current.blockNumber = fetchingBlockNumber
+        }
+      })
+
+      return state
+    }
+    case 'update': {
+      const { chainId, results, blockNumber } = action.payload
+      if (!chainId || !blockNumber) {
+        return state
+      }
+
+      state.callResults[chainId] = state.callResults[chainId] ?? {}
+      Object.keys(results).forEach((callKey) => {
+        const current = state.callResults[chainId][callKey]
+        if ((current?.blockNumber ?? 0) > blockNumber) return
+        if (current?.data === results[callKey] && current?.blockNumber === blockNumber) return
+        state.callResults[chainId][callKey] = {
+          data: results[callKey],
+          blockNumber,
+        }
+      })
+
+      return state
+    }
+    case 'options': {
+      const { chainId, listenerOptions } = action.payload
+      if (!chainId) {
+        return state
+      }
+
+      state.listenerOptions = state.listenerOptions ?? {}
+      state.listenerOptions[chainId] = listenerOptions
+
+      return state
+    }
+    default:
+      return state;
+  }
+}
+
+export interface ProviderProps {
   chainId: number | undefined // For now, one updater is required for each chainId to be watched
   latestBlockNumber: number | undefined
   contract: UniswapInterfaceMulticall
@@ -233,19 +358,19 @@ export interface UpdaterProps {
   listenerOptions?: ListenerOptions
 }
 
-function Updater(props: UpdaterProps): null {
-  const { context, chainId, latestBlockNumber, contract, isDebug, listenerOptions } = props
-  const { actions, reducerPath } = context
-  const dispatch = useDispatch()
+const MulticallProvider: FC<ProviderProps> = (props) => {
+  const { chainId, latestBlockNumber, contract, isDebug, listenerOptions, children } = props
+  const [ state, dispatch ] = useReducer(multicallReducer, initialState)
 
   // set user configured listenerOptions in state for given chain ID.
   useEffect(() => {
     if (chainId && listenerOptions) {
-      dispatch(actions.updateListenerOptions({ chainId, listenerOptions }))
+      dispatch({
+        type: 'options',
+        payload: { chainId, listenerOptions }
+      })
     }
-  }, [chainId, listenerOptions, actions, dispatch])
-
-  const state = useSelector((state: WithMulticallState) => state[reducerPath])
+  }, [chainId, listenerOptions, dispatch])
 
   // wait for listeners to settle before triggering updates
   const debouncedListeners = useDebounce(state.callListeners, 100)
@@ -273,21 +398,15 @@ function Updater(props: UpdaterProps): null {
       cancellations.current.cancellations.forEach((c) => c())
     }
 
-    dispatch(
-      actions.fetchingMulticallResults({
+    dispatch({
+      type: 'fetch',
+      payload: {
         calls,
         chainId,
         fetchingBlockNumber: latestBlockNumber,
-      })
-    )
+      }
+    })
 
-    const fetchChunkContext = {
-      actions,
-      dispatch,
-      chainId,
-      latestBlockNumber,
-      isDebug,
-    }
     // Execute fetches and gather cancellation callbacks
     const newCancellations = chunkedCalls.map((chunk) => {
       const { cancel, promise } = retry(
@@ -295,8 +414,8 @@ function Updater(props: UpdaterProps): null {
         FETCH_RETRY_CONFIG
       )
       promise
-        .then((result) => onFetchChunkSuccess(fetchChunkContext, chunk, result))
-        .catch((error) => onFetchChunkFailure(fetchChunkContext, chunk, error))
+        .then((result) => onFetchChunkSuccess(chunk, result))
+        .catch((error) => onFetchChunkFailure(chunk, error))
       return cancel
     })
 
@@ -304,14 +423,16 @@ function Updater(props: UpdaterProps): null {
       blockNumber: latestBlockNumber,
       cancellations: newCancellations,
     }
-  }, [actions, chainId, contract, dispatch, serializedOutdatedCallKeys, latestBlockNumber, isDebug])
+  }, [chainId, contract, dispatch, serializedOutdatedCallKeys, latestBlockNumber, isDebug])
 
-  return null
+  return (
+    <MulticallContext.Provider value={{
+      state,
+      dispatch
+    }}>
+      {children}
+    </MulticallContext.Provider>
+  )
 }
 
-export function createUpdater(context: MulticallContext) {
-  const UpdaterContextBound = (props: Omit<UpdaterProps, 'context'>) => {
-    return <Updater context={context} {...props} />
-  }
-  return UpdaterContextBound
-}
+export default MulticallProvider
