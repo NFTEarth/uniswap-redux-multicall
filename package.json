@@ -1,6 +1,6 @@
 {
   "name": "@nftearth/uniswap-multicall",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "A React  ̶+̶ ̶R̶e̶d̶u̶x̶ lib for fetching and caching chain state via the MultiCall contract",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -22,7 +22,7 @@
     "lint": "tsdx lint .",
     "test": "tsdx test src",
     "test:e2e": "tsdx test integration-tests",
-    "build": "tsdx build",
+    "build": "tsdx build --tsconfig tsconfig.build.json",
     "watch": "tsdx watch",
     "prepublishOnly": "yarn contracts:compile && yarn build",
     "release": "semantic-release"
