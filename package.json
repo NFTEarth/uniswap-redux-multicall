@@ -1,6 +1,6 @@
 {
   "name": "@nftearth/uniswap-multicall",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A React  ̶+̶ ̶R̶e̶d̶u̶x̶ lib for fetching and caching chain state via the MultiCall contract",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
