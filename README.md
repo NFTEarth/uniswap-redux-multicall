@@ -1,6 +1,6 @@
 # MultiCall
 
-A React + Redux library for fetching, batching, and caching chain state via the MultiCall contract.
+A React   ̶+̶ ̶R̶e̶d̶u̶x̶ library for fetching, batching, and caching chain state via the MultiCall contract.
 
 ## Setup
 
@@ -10,18 +10,15 @@ A React + Redux library for fetching, batching, and caching chain state via the 
 
 The usage of this library is similar to [RTK Query](https://redux-toolkit.js.org/rtk-query/overview#create-an-api-slice).
 
-```js
-// Somewhere in your app
-export const multicall = createMulticall({ reducerPath: 'multicall' })
+```jsx
+import { MulticallProvider } from '@nftearth/uniswap-multicall'
 
-// In your store's root reducer
-export const rootReducer = combineReducers({
-  // Other reducers
-  [multicall.reducerPath]: multicall.reducer
-})
+reactDOM.render(
+  <MulticallProvider />
+)
 ```
 
-To use the updater, you'll need an instance of the Uniswap Multicall2 contract:
+To use the provider, you'll need an instance of the Uniswap Multicall2 contract:
 
 ```js
 import { abi as MulticallABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/UniswapInterfaceMulticall.sol/UniswapInterfaceMulticall.json'

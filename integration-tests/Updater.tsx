@@ -1,7 +1,7 @@
 import React from 'react'
 import { ChainId } from './consts'
 import { useContract } from './hooks'
-import MulticallProvider from '../src/provider'
+import { MulticallProvider } from '../src'
 
 interface Props {
   chainId: ChainId

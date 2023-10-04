@@ -1,13 +1,12 @@
 import { createContext, Dispatch } from 'react'
 import { MulticallAction, MulticallState } from './types'
 
-
 export const initialState: MulticallState = {
   callResults: {},
 }
 // The shared settings and dynamically created utilities
 // required for the hooks and components
-const MulticallContext = createContext<{
+export const MulticallContext = createContext<{
   state: MulticallState
   dispatch: Dispatch<MulticallAction>
   chainId?: number
@@ -17,5 +16,3 @@ const MulticallContext = createContext<{
   state: initialState,
   dispatch: () => {},
 })
-
-export default MulticallContext

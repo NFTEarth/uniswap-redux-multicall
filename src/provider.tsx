@@ -1,5 +1,5 @@
 import React, { FC, useContext, useEffect, useMemo, useReducer, useRef } from 'react'
-import MulticallContext, { initialState } from './context'
+import { MulticallContext, initialState } from './context'
 import {
   Call,
   ListenerOptions, MulticallAction,
@@ -358,7 +358,7 @@ export interface ProviderProps {
   listenerOptions?: ListenerOptions
 }
 
-const MulticallProvider: FC<ProviderProps> = (props) => {
+export const MulticallProvider: FC<ProviderProps> = (props) => {
   const { chainId, latestBlockNumber, contract, isDebug, listenerOptions, children } = props
   const [ state, dispatch ] = useReducer(multicallReducer, initialState)
 
@@ -434,5 +434,3 @@ const MulticallProvider: FC<ProviderProps> = (props) => {
     </MulticallContext.Provider>
   )
 }
-
-export default MulticallProvider
