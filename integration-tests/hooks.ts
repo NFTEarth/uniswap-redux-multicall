@@ -43,7 +43,7 @@ export function useLatestBlock(provider: JsonRpcProvider) {
 
 export function useCurrentBlockTimestamp(chainId: ChainId, blockNumber: number | undefined): string | undefined {
   const contract = useContract(chainId)
-  const callState = useSingleCallResult('getCurrentBlockTimestamp', contract, chainId, blockNumber)
+  const callState = useSingleCallResult(chainId, blockNumber, contract, 'getCurrentBlockTimestamp')
   return callState.result?.[0]?.toString()
 }
 
@@ -85,7 +85,7 @@ export function useMaxTokenBalance(chainId: ChainId, blockNumber: number | undef
     }),
     []
   )
-  const results = useMultipleContractSingleData(ERC20Interface, 'balanceOf', accounts, chainId, blockNumber, contracts)
+  const results = useMultipleContractSingleData(chainId, blockNumber, contracts, ERC20Interface, 'balanceOf', accounts)
   let max
   for (const result of results) {
     if (!result.valid || !result.result?.length) continue

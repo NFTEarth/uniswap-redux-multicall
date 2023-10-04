@@ -203,11 +203,11 @@ export function useSingleContractMultipleData(
 }
 
 export function useMultipleContractSingleData(
+  chainId: number | undefined,
+  latestBlockNumber: number | undefined,
+  addresses: (string | undefined)[],
   contractInterface: Interface,
   methodName: string,
-  addresses: (string | undefined)[],
-  chainId?: number,
-  latestBlockNumber?: number,
   callInputs?: OptionalMethodInputs,
   options?: Partial<ListenerOptionsWithGas>
 ): CallState[] {
@@ -230,10 +230,10 @@ export function useMultipleContractSingleData(
 }
 
 export function useSingleCallResult(
+  chainId: number | undefined,
+  latestBlockNumber: number | undefined,
+  contract: Contract | null | undefined,
   methodName: string,
-  contract?: Contract | null | undefined,
-  chainId?: number,
-  latestBlockNumber?: number | undefined,
   inputs?: OptionalMethodInputs,
   options?: Partial<ListenerOptionsWithGas>
 ): CallState {
